@@ -1,0 +1,37 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+export const env = {
+  port: parseInt(process.env.PORT || '5000', 10),
+  mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/crm',
+  jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-me',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  superadminEmail: process.env.SUPERADMIN_EMAIL || 'admin@brokerage.com',
+  superadminPassword: process.env.SUPERADMIN_PASSWORD || 'changeme123',
+  superadminName: process.env.SUPERADMIN_NAME || 'Brokerage Owner',
+  redisUrl: process.env.REDIS_URL || '',
+  notifySuperadminOnEscalation: process.env.NOTIFY_SUPERADMIN_ON_ESCALATION !== 'false',
+  speedToLeadMinutes: parseInt(process.env.SPEED_TO_LEAD_MINUTES || '20', 10),
+  whatsappProvider: process.env.WHATSAPP_PROVIDER || 'ultramsg',
+  ultramsgApiUrl: process.env.ULTRAMSG_API_URL || 'https://api.ultramsg.com',
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+  brokerageName: process.env.BROKERAGE_NAME || 'Premier Realty',
+  brokerageTagline: process.env.BROKERAGE_TAGLINE || 'Find your next home with trusted local experts',
+  brokeragePhone: process.env.BROKERAGE_PHONE || '',
+  brokerageEmail: process.env.BROKERAGE_EMAIL || '',
+  brokerageAddress: process.env.BROKERAGE_ADDRESS || '',
+  brokerageHours: process.env.BROKERAGE_HOURS || 'Mon–Fri 9am–6pm',
+  brokerageAbout: process.env.BROKERAGE_ABOUT || 'We are a full-service real estate brokerage dedicated to helping buyers, sellers, and renters navigate the market with confidence.',
+  brokerageInstagram: process.env.BROKERAGE_INSTAGRAM || '',
+  brokerageFacebook: process.env.BROKERAGE_FACEBOOK || '',
+  brokerageLinkedin: process.env.BROKERAGE_LINKEDIN || '',
+  notifyWhatsappPush: process.env.NOTIFY_WHATSAPP_PUSH !== 'false',
+  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
+  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
+  dailyDigestCron: process.env.DAILY_DIGEST_CRON || '0 3 * * *',
+  publicSiteUrl: process.env.PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173',
+  brokerageTimezone: process.env.BROKERAGE_TIMEZONE || '+05:00',
+};
