@@ -16,7 +16,7 @@ export const env = {
   whatsappProvider: process.env.WHATSAPP_PROVIDER || 'ultramsg',
   ultramsgApiUrl: process.env.ULTRAMSG_API_URL || 'https://api.ultramsg.com',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   brokerageName: process.env.BROKERAGE_NAME || 'Premier Realty',
   brokerageTagline: process.env.BROKERAGE_TAGLINE || 'Find your next home with trusted local experts',
   brokeragePhone: process.env.BROKERAGE_PHONE || '',
