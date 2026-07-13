@@ -84,6 +84,13 @@ export async function scheduleSpeedToLeadJob(leadId) {
   await q.add('speed-to-lead', { leadId: leadId.toString() }, { jobId, delay });
 }
 
+export async function cancelSpeedToLeadJob(leadId) {
+  const q = getQueue();
+  if (!q) return;
+  const job = await q.getJob(`lead:${leadId}:speed-to-lead`);
+  if (job) await job.remove();
+}
+
 function formatTaskType(type) {
   return type.replace(/_/g, ' ');
 }

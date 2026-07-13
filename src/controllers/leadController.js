@@ -80,6 +80,27 @@ export const update = asyncHandler(async (req, res) => {
   res.json(lead);
 });
 
+export const remove = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const result = await leadService.deleteLead(req.user, req.params.id);
+  res.json(result);
+});
+
+export const bulkDeleteValidators = [
+  body('leadIds').isArray({ min: 1, max: 500 }),
+  body('leadIds.*').isMongoId(),
+];
+
+export const bulkDelete = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const result = await leadService.bulkDeleteLeads(req.user, req.body);
+  res.json(result);
+});
+
 export const merge = asyncHandler(async (req, res) => {
   const original = await leadService.mergeLead(req.user, req.params.id);
   res.json({ merged: true, original });

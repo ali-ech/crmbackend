@@ -8,10 +8,16 @@ import {
   CLOSED_STATUSES,
 } from '../models/Lead.js';
 import { logStatusChange } from './activityService.js';
-import { notifyNewLead, scheduleSpeedToLeadJob } from '../queues/jobQueue.js';
+import {
+  notifyNewLead,
+  scheduleSpeedToLeadJob,
+  cancelSpeedToLeadJob,
+  cancelTaskJobs,
+} from '../queues/jobQueue.js';
 import { notifyLeadAssigned, notifyDealClosed } from './notificationTriggers.js';
 import { Activity } from '../models/Activity.js';
 import { Task } from '../models/Task.js';
+import { Notification } from '../models/Notification.js';
 import {
   validateLeadAssignment,
   smartForwardLeads as runSmartForward,
@@ -347,6 +353,79 @@ export async function updateLead(actor, leadId, updates) {
 
   await lead.save();
   return lead.populate(populateOptions());
+}
+
+async function deleteLeadRecords(leads) {
+  const leadIds = leads.map((lead) => lead._id);
+  const tasks = await Task.find({ leadId: { $in: leadIds } }).select('_id');
+  const taskIds = tasks.map((task) => task._id);
+
+  await Promise.allSettled([
+    ...leads.map((lead) => cancelSpeedToLeadJob(lead._id)),
+    ...tasks.map((task) => cancelTaskJobs(task._id)),
+  ]);
+
+  await Promise.all([
+    Activity.deleteMany({ leadId: { $in: leadIds } }),
+    Task.deleteMany({ leadId: { $in: leadIds } }),
+    Notification.deleteMany({
+      $or: [
+        { relatedLeadId: { $in: leadIds } },
+        { relatedTaskId: { $in: taskIds } },
+      ],
+    }),
+    Lead.updateMany(
+      { duplicateOfLeadId: { $in: leadIds } },
+      { $set: { duplicateOfLeadId: null } }
+    ),
+  ]);
+
+  const result = await Lead.deleteMany({ _id: { $in: leadIds } });
+  return result.deletedCount;
+}
+
+export async function deleteLead(actor, leadId) {
+  if (!['manager', 'superadmin'].includes(actor.role)) {
+    const err = new Error('Only managers and super admins can delete leads');
+    err.status = 403;
+    throw err;
+  }
+
+  const lead = await Lead.findById(leadId);
+  if (!lead) {
+    const err = new Error('Lead not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const agentIds = actor.role === 'manager' ? await getManagerAgentIds(actor._id) : [];
+  if (!canAccessLead(actor, lead, agentIds)) {
+    const err = new Error('You can only delete leads belonging to your team');
+    err.status = 403;
+    throw err;
+  }
+
+  await deleteLeadRecords([lead]);
+  return { deleted: true, leadId: lead._id, leadName: lead.name };
+}
+
+export async function bulkDeleteLeads(actor, { leadIds }) {
+  if (actor.role !== 'superadmin') {
+    const err = new Error('Only super admins can bulk-delete leads');
+    err.status = 403;
+    throw err;
+  }
+
+  const uniqueIds = [...new Set(leadIds.map((id) => id.toString()))];
+  const leads = await Lead.find({ _id: { $in: uniqueIds } });
+  if (leads.length !== uniqueIds.length) {
+    const err = new Error('One or more leads were not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const deleted = await deleteLeadRecords(leads);
+  return { deleted };
 }
 
 export async function mergeLead(actor, leadId) {
