@@ -223,7 +223,7 @@ export async function notifyNewLead(lead) {
   }
 }
 
-const STALE_EXCLUDE = ['nurture', 'closed_won', 'closed_lost'];
+const STALE_EXCLUDE = ['nurture', 'closed_won', 'closed_lost', 'disqualified'];
 
 async function handleColdLeadScan() {
   const cutoff = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
@@ -298,6 +298,14 @@ async function handleDailyDigest() {
   }
 }
 
+async function handlePurgeDisqualified() {
+  const { purgeDisqualifiedLeads } = await import('../services/leadService.js');
+  const result = await purgeDisqualifiedLeads();
+  if (result.deleted > 0) {
+    console.log(`Purged ${result.deleted} disqualified lead(s) older than ${result.purgeDays} days`);
+  }
+}
+
 async function registerRepeatableJobs() {
   const q = getQueue();
   if (!q) return;
@@ -312,6 +320,11 @@ async function registerRepeatableJobs() {
   await q.add('cold-lead-scan', {}, {
     repeat: { pattern: cron },
     jobId: 'repeat:cold-lead-scan',
+  });
+
+  await q.add('purge-disqualified', {}, {
+    repeat: { pattern: cron },
+    jobId: 'repeat:purge-disqualified',
   });
 }
 
@@ -336,6 +349,9 @@ export function startJobWorker() {
           break;
         case 'cold-lead-scan':
           await handleColdLeadScan();
+          break;
+        case 'purge-disqualified':
+          await handlePurgeDisqualified();
           break;
         case 'daily-digest':
           await handleDailyDigest();

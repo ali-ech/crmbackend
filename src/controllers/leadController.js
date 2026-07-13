@@ -5,12 +5,13 @@ import {
   LEAD_TYPES_LIST,
   LEAD_SOURCES_LIST,
   BUYER_STATUSES_LIST,
-  SELLER_STATUSES_LIST,
+  LEGACY_STATUSES_LIST,
+  DISQUALIFY_REASONS_LIST,
   LOST_REASONS_LIST,
 } from '../models/Lead.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
-const ALL_STATUSES = [...new Set([...BUYER_STATUSES_LIST, ...SELLER_STATUSES_LIST])];
+const ALL_STATUSES = [...new Set([...BUYER_STATUSES_LIST, ...LEGACY_STATUSES_LIST])];
 
 export const createValidators = [
   body('type').isIn(LEAD_TYPES_LIST),
@@ -26,6 +27,7 @@ export const updateValidators = [
   param('id').isMongoId(),
   body('status').optional().isIn(ALL_STATUSES),
   body('lostReason').optional({ nullable: true }).isIn(LOST_REASONS_LIST),
+  body('disqualifyReason').optional({ nullable: true }).isIn(DISQUALIFY_REASONS_LIST),
   body('type').optional().isIn(LEAD_TYPES_LIST),
   body('name').optional().trim().notEmpty(),
   body('phone').optional().trim().notEmpty(),
@@ -181,8 +183,9 @@ export const meta = asyncHandler(async (_req, res) => {
   res.json({
     types: LEAD_TYPES_LIST,
     sources: LEAD_SOURCES_LIST,
-    buyerStatuses: BUYER_STATUSES_LIST,
-    sellerStatuses: SELLER_STATUSES_LIST,
+    statuses: BUYER_STATUSES_LIST,
+    disqualifyReasons: DISQUALIFY_REASONS_LIST,
     lostReasons: LOST_REASONS_LIST,
+    disqualifiedPurgeDays: parseInt(process.env.DISQUALIFIED_PURGE_DAYS || '30', 10),
   });
 });

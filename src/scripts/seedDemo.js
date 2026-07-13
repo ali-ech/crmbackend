@@ -245,13 +245,11 @@ async function seedDemo() {
   }
 
   const leadStatusesByType = {
-    buyer: ['new', 'attempted_contact', 'contacted', 'qualified', 'showing_scheduled', 'showing_completed', 'offer_submitted', 'under_contract', 'closed_won', 'closed_lost', 'nurture'],
-    seller: ['new', 'consultation_scheduled', 'agreement_signed', 'live_on_market', 'offer_received', 'under_contract', 'closed_won', 'closed_lost', 'nurture'],
-    renter: ['new', 'contacted', 'qualified', 'showing_scheduled', 'under_contract', 'closed_won', 'closed_lost'],
-    landlord: ['new', 'consultation_scheduled', 'agreement_signed', 'live_on_market', 'closed_won', 'closed_lost'],
+    buyer: ['new', 'attempted_contact', 'qualified', 'showing_scheduled', 'showing_completed', 'under_contract', 'closed_won', 'closed_lost', 'nurture', 'disqualified'],
+    renter: ['new', 'attempted_contact', 'qualified', 'showing_scheduled', 'under_contract', 'closed_won', 'closed_lost', 'nurture', 'disqualified'],
   };
 
-  const leadTypes = ['buyer', 'buyer', 'buyer', 'seller', 'seller', 'renter', 'landlord'];
+  const leadTypes = ['buyer', 'buyer', 'buyer', 'buyer', 'renter', 'renter', 'renter'];
   const leadSources = ['website_listing', 'website_general', 'website_agent_page', 'facebook_ad', 'manual', 'referral'];
   const lostReasons = ['not_interested', 'went_with_competitor', 'budget', 'timing', 'unresponsive', 'other'];
 
@@ -304,7 +302,7 @@ async function seedDemo() {
     });
     activityCount += 1;
 
-    if (['contacted', 'qualified', 'showing_scheduled', 'under_contract', 'closed_won', 'closed_lost', 'consultation_scheduled', 'agreement_signed'].includes(lead.status)) {
+    if (['qualified', 'showing_scheduled', 'under_contract', 'closed_won', 'closed_lost', 'nurture'].includes(lead.status)) {
       await Activity.create({
         leadId: lead._id,
         userId: actor._id,

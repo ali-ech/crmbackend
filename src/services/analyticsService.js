@@ -4,13 +4,17 @@ import { Task } from '../models/Task.js';
 import { Activity } from '../models/Activity.js';
 import { env } from '../config/env.js';
 
-const CONTACTED_STATUSES = [
-  'attempted_contact', 'contacted', 'qualified', 'showing_scheduled', 'showing_completed',
-  'offer_submitted', 'under_contract', 'consultation_scheduled', 'agreement_signed',
-  'live_on_market', 'offer_received',
+const ENGAGED_STATUSES = [
+  'qualified', 'showing_scheduled', 'showing_completed',
+  'under_contract',
+  // legacy
+  'contacted', 'offer_submitted', 'consultation_scheduled', 'agreement_signed', 'live_on_market', 'offer_received',
 ];
 
-const REACHED_CONTACT_STATUSES = [...CONTACTED_STATUSES, 'closed_won', 'closed_lost'];
+const REACHED_CONTACT_STATUSES = [
+  ...ENGAGED_STATUSES,
+  'nurture', 'closed_won', 'closed_lost', 'disqualified',
+];
 
 const TZ = env.brokerageTimezone || '+05:00';
 
@@ -129,10 +133,6 @@ function conversionRate(closedWon, reachedContact) {
   return reachedContact > 0 ? Math.round((closedWon / reachedContact) * 100) : 0;
 }
 
-function winRate(won, closed) {
-  return closed > 0 ? Math.round((won / closed) * 100) : 0;
-}
-
 async function sumClosedRevenue(match) {
   const rows = await Lead.aggregate([
     { $match: { ...match, status: 'closed_won' } },
@@ -163,7 +163,7 @@ async function computeFunnel(agentIds, { dateRange } = {}) {
     const periodMatch = { ...match, createdAt: { $gte: start, $lte: end } };
     const [newCount, contactedCount, reachedContact, closedWon, closedLost, activeInPeriod, revenue] = await Promise.all([
       Lead.countDocuments(periodMatch),
-      Lead.countDocuments({ ...periodMatch, status: { $in: CONTACTED_STATUSES } }),
+      Lead.countDocuments({ ...periodMatch, status: { $in: ENGAGED_STATUSES } }),
       Lead.countDocuments({ ...periodMatch, status: { $in: REACHED_CONTACT_STATUSES } }),
       Lead.countDocuments({ ...match, status: 'closed_won', updatedAt: { $gte: start, $lte: end } }),
       Lead.countDocuments({ ...match, status: 'closed_lost', updatedAt: { $gte: start, $lte: end } }),
@@ -179,7 +179,7 @@ async function computeFunnel(agentIds, { dateRange } = {}) {
       $group: {
         _id: null,
         new: { $sum: { $cond: [{ $eq: ['$status', 'new'] }, 1, 0] } },
-        contacted: { $sum: { $cond: [{ $in: ['$status', CONTACTED_STATUSES] }, 1, 0] } },
+        contacted: { $sum: { $cond: [{ $in: ['$status', ENGAGED_STATUSES] }, 1, 0] } },
         reachedContact: { $sum: { $cond: [{ $in: ['$status', REACHED_CONTACT_STATUSES] }, 1, 0] } },
         closedWon: { $sum: { $cond: [{ $eq: ['$status', 'closed_won'] }, 1, 0] } },
         closedLost: { $sum: { $cond: [{ $eq: ['$status', 'closed_lost'] }, 1, 0] } },
@@ -230,7 +230,7 @@ async function computeTrends(agentIds, filter = {}) {
       Lead.countDocuments({
         ...match,
         createdAt: { $gte: start, $lte: end },
-        status: { $in: CONTACTED_STATUSES },
+        status: { $in: ENGAGED_STATUSES },
       }),
     ]);
     points.push({ key, label, newLeads, closedWon, closedLost, contacted });
@@ -364,7 +364,7 @@ async function computeAgentMetrics(agent, { dateRange } = {}) {
       const [activeLeads, newLeads, contacted, reachedContact, closedWon, closedLost, revenue] = await Promise.all([
         Lead.countDocuments({ ...baseMatch, status: { $nin: CLOSED_STATUSES } }),
         Lead.countDocuments({ ...baseMatch, status: 'new' }),
-        Lead.countDocuments({ ...baseMatch, status: { $in: CONTACTED_STATUSES } }),
+        Lead.countDocuments({ ...baseMatch, status: { $in: ENGAGED_STATUSES } }),
         Lead.countDocuments({ ...baseMatch, status: { $in: REACHED_CONTACT_STATUSES } }),
         Lead.countDocuments({ ...baseMatch, status: 'closed_won' }),
         Lead.countDocuments({ ...baseMatch, status: 'closed_lost' }),
@@ -381,7 +381,6 @@ async function computeAgentMetrics(agent, { dateRange } = {}) {
         revenue,
         contactRate: contactRate(reachedContact, totalNew),
         conversionRate: conversionRate(closedWon, reachedContact),
-        winRate: winRate(closedWon, closedWon + closedLost),
       };
     }
 
@@ -389,7 +388,7 @@ async function computeAgentMetrics(agent, { dateRange } = {}) {
     const periodMatch = { ...baseMatch, createdAt: { $gte: start, $lte: end } };
     const [newLeads, contacted, reachedContact, closedWon, closedLost, activeLeads, revenue] = await Promise.all([
       Lead.countDocuments(periodMatch),
-      Lead.countDocuments({ ...periodMatch, status: { $in: CONTACTED_STATUSES } }),
+      Lead.countDocuments({ ...periodMatch, status: { $in: ENGAGED_STATUSES } }),
       Lead.countDocuments({ ...periodMatch, status: { $in: REACHED_CONTACT_STATUSES } }),
       Lead.countDocuments({ ...baseMatch, status: 'closed_won', updatedAt: { $gte: start, $lte: end } }),
       Lead.countDocuments({ ...baseMatch, status: 'closed_lost', updatedAt: { $gte: start, $lte: end } }),
@@ -406,7 +405,6 @@ async function computeAgentMetrics(agent, { dateRange } = {}) {
       revenue,
       contactRate: contactRate(reachedContact, newLeads),
       conversionRate: conversionRate(closedWon, reachedContact),
-      winRate: winRate(closedWon, closedWon + closedLost),
     };
   }
 
@@ -443,7 +441,6 @@ function rollupMetrics(agentMetrics) {
   );
   rolled.contactRate = contactRate(rolled.reachedContact, rolled.newLeads);
   rolled.conversionRate = conversionRate(rolled.closedWon, rolled.reachedContact);
-  rolled.winRate = winRate(rolled.closedWon, rolled.closedWon + rolled.closedLost);
   return rolled;
 }
 
@@ -635,7 +632,6 @@ async function getSuperadminDashboard(filter) {
       revenue: t.stats?.revenue || 0,
       contactRate: t.stats?.contactRate || 0,
       conversionRate: t.stats?.conversionRate || 0,
-      winRate: t.stats?.winRate || 0,
     }))
     .sort((a, b) => b.revenue - a.revenue || b.closedWon - a.closedWon);
 

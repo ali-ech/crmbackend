@@ -19,7 +19,7 @@ Each object must have exactly these keys:
 - sourceDetail (string or null — e.g. "Facebook Ad - Hayatabad March 2026")
 - propertyInterest (string or null — property name, address, or area they inquired about)
 - propertyType (one of: house, apartment, plot, commercial, or null)
-- type (one of: buyer, seller, renter, landlord — default buyer)
+- type (one of: buyer, renter — default buyer)
 
 Rules:
 - Extract every distinct lead you can find

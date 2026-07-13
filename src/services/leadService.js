@@ -1,10 +1,10 @@
 import { buildDateRangeFilter } from '../utils/dateRange.js';
+import { env } from '../config/env.js';
 import { User } from '../models/User.js';
 import { Listing } from '../models/Listing.js';
 import {
   Lead,
   BUYER_STATUSES_LIST,
-  SELLER_STATUSES_LIST,
   CLOSED_STATUSES,
 } from '../models/Lead.js';
 import { logStatusChange } from './activityService.js';
@@ -23,10 +23,15 @@ import {
   smartForwardLeads as runSmartForward,
 } from './leadAssignmentService.js';
 
-const BUYER_TYPES = ['buyer', 'renter'];
+export function statusesForType(_type) {
+  return BUYER_STATUSES_LIST;
+}
 
-export function statusesForType(type) {
-  return BUYER_TYPES.includes(type) ? BUYER_STATUSES_LIST : SELLER_STATUSES_LIST;
+export function normalizeLeadType(type) {
+  const t = String(type || 'buyer').toLowerCase();
+  if (t === 'seller') return 'buyer';
+  if (t === 'landlord') return 'renter';
+  return t === 'renter' ? 'renter' : 'buyer';
 }
 
 export function normalizePhone(phone) {
@@ -200,7 +205,7 @@ export async function createLead(actor, data, { allowDuplicate = false } = {}) {
   }
 
   const lead = await Lead.create({
-    type: data.type,
+    type: normalizeLeadType(data.type),
     name: data.name,
     phone,
     email: data.email || null,
@@ -253,7 +258,7 @@ export async function createPublicInquiry({ listingId, agentSlug, name, phone, e
   const duplicate = await findDuplicateByPhone(normalized);
 
   const lead = await Lead.create({
-    type: type || 'buyer',
+    type: normalizeLeadType(type),
     name,
     phone: normalized,
     email: email || null,
@@ -298,7 +303,12 @@ export async function updateLead(actor, leadId, updates) {
       throw err;
     }
     if (updates.status === 'closed_lost' && !updates.lostReason && !lead.lostReason) {
-      const err = new Error('lostReason is required when closing a lead as lost');
+      const err = new Error('lostReason is required when marking a lead as deal lost');
+      err.status = 400;
+      throw err;
+    }
+    if (updates.status === 'disqualified' && !updates.disqualifyReason && !lead.disqualifyReason) {
+      const err = new Error('disqualifyReason is required when disqualifying a lead');
       err.status = 400;
       throw err;
     }
@@ -315,8 +325,16 @@ export async function updateLead(actor, leadId, updates) {
     lead.status = updates.status;
     if (updates.status === 'closed_lost') {
       lead.lostReason = updates.lostReason || lead.lostReason;
+      lead.disqualifyReason = null;
+      lead.disqualifiedAt = null;
+    } else if (updates.status === 'disqualified') {
+      lead.disqualifyReason = updates.disqualifyReason || lead.disqualifyReason;
+      lead.disqualifiedAt = new Date();
+      lead.lostReason = null;
     } else {
       lead.lostReason = null;
+      lead.disqualifyReason = null;
+      lead.disqualifiedAt = null;
     }
     if (previousStatus !== updates.status) {
       await logStatusChange(lead._id, actor._id, previousStatus, updates.status);
@@ -344,6 +362,10 @@ export async function updateLead(actor, leadId, updates) {
     if (actor.role === 'manager' && assignedId && assignedId !== previousAgentId) {
       await notifyLeadAssigned({ lead, manager: actor, agentId: assignedId });
     }
+  }
+
+  if (updates.type !== undefined) {
+    updates.type = normalizeLeadType(updates.type);
   }
 
   const fields = ['name', 'email', 'type', 'notes', 'relatedListingId', 'propertyInterest', 'propertyType', 'sourceDetail', 'closedPrice'];
@@ -391,6 +413,18 @@ async function deleteLeadRecords(leads) {
 
   const result = await Lead.deleteMany({ _id: { $in: leadIds } });
   return result.deletedCount;
+}
+
+export async function purgeDisqualifiedLeads() {
+  const days = env.disqualifiedPurgeDays || 30;
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const leads = await Lead.find({
+    status: 'disqualified',
+    disqualifiedAt: { $ne: null, $lte: cutoff },
+  });
+  if (!leads.length) return { deleted: 0, purgeDays: days };
+  const deleted = await deleteLeadRecords(leads);
+  return { deleted, purgeDays: days };
 }
 
 export async function deleteLead(actor, leadId) {

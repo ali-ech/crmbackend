@@ -32,6 +32,7 @@ export const env = {
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
   dailyDigestCron: process.env.DAILY_DIGEST_CRON || '0 3 * * *',
+  disqualifiedPurgeDays: parseInt(process.env.DISQUALIFIED_PURGE_DAYS || '30', 10),
   publicSiteUrl: process.env.PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173',
   brokerageTimezone: process.env.BROKERAGE_TIMEZONE || '+05:00',
 };

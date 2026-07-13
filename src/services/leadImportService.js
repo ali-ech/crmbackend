@@ -1,5 +1,5 @@
 import { parseLeadsFromText, parseLeadsFromFile } from './geminiService.js';
-import { createLead, findDuplicateByPhone, normalizePhone } from './leadService.js';
+import { createLead, findDuplicateByPhone, normalizePhone, normalizeLeadType } from './leadService.js';
 
 const VALID_SOURCES = ['facebook_ad', 'tiktok_ad', 'referral', 'bulk_import', 'manual'];
 const VALID_PROPERTY_TYPES = ['house', 'apartment', 'plot', 'commercial'];
@@ -36,7 +36,7 @@ function parseStructuredLines(text) {
       propertyType: VALID_PROPERTY_TYPES.includes(get('propertytype') || get('property_type'))
         ? (get('propertytype') || get('property_type'))
         : null,
-      type: get('type') || 'buyer',
+      type: normalizeLeadType(get('type')),
     });
   }
 
@@ -53,7 +53,7 @@ async function enrichParsedLeads(parsed) {
       return {
         id: `row-${index}`,
         ...lead,
-        type: lead.type || 'buyer',
+        type: normalizeLeadType(lead.type),
         duplicate: duplicate
           ? { _id: duplicate._id, name: duplicate.name, phone: duplicate.phone, status: duplicate.status }
           : null,
@@ -94,7 +94,7 @@ export async function confirmImport(actor, rows, { allowDuplicates = false } = {
       const lead = await createLead(
         actor,
         {
-          type: row.type || 'buyer',
+          type: normalizeLeadType(row.type),
           name: row.name.trim(),
           phone: row.phone.trim(),
           email: row.email || null,
