@@ -32,6 +32,7 @@ export const updateValidators = [
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail(),
   body('assignedAgentId').optional({ nullable: true }).custom((v) => v === null || /^[a-f\d]{24}$/i.test(v)),
   body('relatedListingId').optional({ nullable: true }).custom((v) => v === null || /^[a-f\d]{24}$/i.test(v)),
+  body('closedPrice').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('closedPrice must be a positive number'),
 ];
 
 export const listValidators = [

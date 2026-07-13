@@ -65,6 +65,7 @@ const leadSchema = new mongoose.Schema(
     propertyInterest: { type: String, default: null, trim: true },
     propertyType: { type: String, enum: ['house', 'apartment', 'plot', 'commercial'], default: null },
     sourceDetail: { type: String, default: null, trim: true },
+    closedPrice: { type: Number, default: null, min: 0 },
   },
   { timestamps: true }
 );

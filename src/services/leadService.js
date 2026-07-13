@@ -302,6 +302,15 @@ export async function updateLead(actor, leadId, updates) {
       err.status = 400;
       throw err;
     }
+    if (updates.status === 'closed_won') {
+      const price = updates.closedPrice ?? lead.closedPrice;
+      if (price == null || Number(price) <= 0) {
+        const err = new Error('closedPrice is required when marking a lead as won');
+        err.status = 400;
+        throw err;
+      }
+      lead.closedPrice = Number(price);
+    }
     const previousStatus = lead.status;
     lead.status = updates.status;
     if (updates.status === 'closed_lost') {
@@ -337,7 +346,7 @@ export async function updateLead(actor, leadId, updates) {
     }
   }
 
-  const fields = ['name', 'email', 'type', 'notes', 'relatedListingId', 'propertyInterest', 'propertyType', 'sourceDetail'];
+  const fields = ['name', 'email', 'type', 'notes', 'relatedListingId', 'propertyInterest', 'propertyType', 'sourceDetail', 'closedPrice'];
   for (const field of fields) {
     if (updates[field] !== undefined) lead[field] = updates[field];
   }
